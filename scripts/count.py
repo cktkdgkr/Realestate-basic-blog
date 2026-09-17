@@ -18,6 +18,7 @@ import sys
 from pathlib import Path
 
 MIN_CHARS = 2000
+CLOSING_LINE = "오늘도 내집 마련을 꿈꾸는 모든 이들의 성공적인 내집 마련과 평안을 기원한다."
 
 # 금지 종결어미: 존댓말(합쇼체/해요체) 및 구어체
 BANNED_ENDINGS = [
@@ -146,6 +147,13 @@ def main():
 
     r = analyze(path)
 
+    # 절대 규칙 10번 — 고정 맺음 문구
+    raw_lines = [l.rstrip() for l in path.read_text(encoding="utf-8").splitlines() if l.strip()]
+    r["closing_line_ok"] = bool(raw_lines) and raw_lines[-1].strip() == CLOSING_LINE
+    r["closing_line_found"] = raw_lines[-1].strip() if raw_lines else ""
+    if not r["closing_line_ok"]:
+        r["pass"] = False
+
     if as_json:
         print(json.dumps(r, ensure_ascii=False, indent=2))
         return 0 if r["pass"] else 1
@@ -174,6 +182,14 @@ def main():
             s = h["sentence"]
             s = s if len(s) <= 90 else s[:90] + "…"
             print(f"  {i:>2}. [{h['word']}] {s}")
+
+    print("-" * 60)
+    if r["closing_line_ok"]:
+        print("맺음 문구        : 통과")
+    else:
+        print("맺음 문구        : ⛔ 누락/변형 — 절대 규칙 10번 위반")
+        print(f"   있어야 할 줄 : {CLOSING_LINE}")
+        print(f"   실제 마지막 줄 : {r['closing_line_found'][:70]}")
 
     print("=" * 60)
     print(f"최종 : {'PASS' if r['pass'] else 'FAIL'}")
